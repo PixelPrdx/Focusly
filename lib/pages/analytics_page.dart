@@ -25,16 +25,28 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   Future<Map<String, dynamic>> _getAnalyticsData() async {
     final now = DateTime.now();
     DateTime startDate;
+    DateTime endDate;
     String periodKey;
 
     if (_selectedPeriod == 'daily') {
-      startDate = now.subtract(const Duration(days: 7));
+      // Bugünün başlangıcı (00:00:00)
+      startDate = DateTime(now.year, now.month, now.day);
+      endDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       periodKey = 'analyticsDaily';
     } else if (_selectedPeriod == 'weekly') {
-      startDate = now.subtract(const Duration(days: 56));
+      // Bu haftanın başlangıcı (Pazartesi)
+      final weekday = now.weekday;
+      startDate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: weekday - 1));
+      endDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       periodKey = 'analyticsWeekly';
     } else {
-      startDate = now.subtract(const Duration(days: 365));
+      // Bu ayın başlangıcı
+      startDate = DateTime(now.year, now.month, 1);
+      endDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
       periodKey = 'analyticsMonthly';
     }
 
@@ -51,8 +63,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           pomodoroSnapshot.docs.where((doc) {
             final completedAt = doc['completedAt'] as Timestamp?;
             if (completedAt == null) return false;
-            return completedAt.toDate().isAfter(startDate) ||
-                completedAt.toDate().isAtSameMomentAs(startDate);
+            final date = completedAt.toDate();
+            return (date.isAfter(startDate) ||
+                    date.isAtSameMomentAs(startDate)) &&
+                (date.isBefore(endDate) || date.isAtSameMomentAs(endDate));
           }).toList();
 
       // Tamamlanan görevleri al - basit sorgu
@@ -69,8 +83,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             if (!completed) return false;
             final completedAt = doc['completedAt'] as Timestamp?;
             if (completedAt == null) return false;
-            return completedAt.toDate().isAfter(startDate) ||
-                completedAt.toDate().isAtSameMomentAs(startDate);
+            final date = completedAt.toDate();
+            return (date.isAfter(startDate) ||
+                    date.isAtSameMomentAs(startDate)) &&
+                (date.isBefore(endDate) || date.isAtSameMomentAs(endDate));
           }).toList();
 
       int pomodoroCount = filteredPomodoros.length;

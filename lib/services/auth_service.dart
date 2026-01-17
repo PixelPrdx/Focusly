@@ -11,6 +11,9 @@ class AuthService {
   // Kullanıcı state değişimlerini dinle
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  // E-posta doğrulandı mı?
+  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
+
   // Sign Up
   Future<UserCredential> signUp({
     required String email,
@@ -30,6 +33,9 @@ class AuthService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
+      // Doğrulama e-postası gönder
+      await userCredential.user!.sendEmailVerification();
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
@@ -42,13 +48,42 @@ class AuthService {
     required String password,
   }) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      // E-posta doğrulanmamışsa hata fırlat
+      if (!userCredential.user!.emailVerified) {
+        throw Exception('EMAIL_NOT_VERIFIED');
+      }
+
+      return userCredential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
+  }
+
+  // Doğrulama e-postasını tekrar gönder
+  Future<void> resendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  // Şifre sıfırlama e-postası gönder
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    }
+  }
+
+  // Kullanıcı bilgilerini yenile (e-posta doğrulama durumunu güncellemek için)
+  Future<void> reloadUser() async {
+    await _auth.currentUser?.reload();
   }
 
   // Sign Out

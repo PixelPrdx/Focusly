@@ -18,6 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  bool _showResendVerification = false;
 
   @override
   void dispose() {
@@ -35,6 +36,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _showResendVerification = false;
     });
 
     try {
@@ -49,10 +51,143 @@ class _LoginPageState extends State<LoginPage> {
         ).pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
       }
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      String errorMsg = e.toString();
+
+      // E-posta doğrulanmamış hatası kontrolü
+      if (errorMsg.contains('EMAIL_NOT_VERIFIED')) {
+        setState(() {
+          _errorMessage = 'emailNotVerified'.tr();
+          _showResendVerification = true;
+        });
+      } else {
+        setState(() => _errorMessage = errorMsg);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _resendVerificationEmail() async {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.resendVerificationEmail();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('verificationEmailSent'.tr()),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final resetEmailController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF16213E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'forgotPassword'.tr(),
+              style: const TextStyle(color: Colors.white),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'forgotPasswordDesc'.tr(),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: resetEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'loginEmail'.tr(),
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.1),
+                    prefixIcon: const Icon(
+                      Icons.email,
+                      color: Color(0xFF00B4D8),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'cancel'.tr(),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00B4D8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () async {
+                  if (resetEmailController.text.trim().isEmpty) {
+                    return;
+                  }
+                  try {
+                    await _authService.sendPasswordResetEmail(
+                      resetEmailController.text.trim(),
+                    );
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('resetPasswordSent'.tr()),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(e.toString()),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: Text(
+                  'send'.tr(),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
@@ -139,12 +274,30 @@ class _LoginPageState extends State<LoginPage> {
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.red.shade400),
                               ),
-                              child: Text(
-                                _errorMessage!,
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 13,
-                                ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    _errorMessage!,
+                                    style: const TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (_showResendVerification) ...[
+                                    const SizedBox(height: 8),
+                                    GestureDetector(
+                                      onTap: _resendVerificationEmail,
+                                      child: Text(
+                                        'resendVerification'.tr(),
+                                        style: const TextStyle(
+                                          color: Color(0xFF00B4D8),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
 
@@ -166,7 +319,24 @@ class _LoginPageState extends State<LoginPage> {
                             decoration: _passwordInput('loginPassword'.tr()),
                           ),
 
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 12),
+
+                          // Şifremi Unuttum linki
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: GestureDetector(
+                              onTap: _showForgotPasswordDialog,
+                              child: Text(
+                                'forgotPassword'.tr(),
+                                style: const TextStyle(
+                                  color: Color(0xFF00B4D8),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
 
                           ElevatedButton(
                             onPressed: _isLoading ? null : _login,
