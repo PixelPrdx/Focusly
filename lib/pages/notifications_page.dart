@@ -12,143 +12,17 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
-  List<NotificationItem> _notifications = [];
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _loadNotifications();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Locale değiştiğinde bildirimleri yeniden yükle
-    _loadNotifications();
-  }
-
-  Future<void> _loadNotifications() async {
-    // Görev istatistiklerini al
-    final user = FirebaseAuth.instance.currentUser;
-    int completed = 0;
-    int total = 0;
-
-    if (user != null) {
-      final tasksRef = FirebaseFirestore.instance.collection('tasks');
-      final snapshot =
-          await tasksRef.where('userId', isEqualTo: user.uid).get();
-      completed = snapshot.docs.where((doc) => doc['completed'] == true).length;
-      total = snapshot.docs.length;
-    }
-
-    final rate = total == 0 ? 0 : (completed / total * 100).toInt();
-
-    // Bildirimleri oluştur
-    final now = DateTime.now();
-    final notifications = <NotificationItem>[];
-
-    // Sabah bildirimi (09:00)
-    notifications.add(
-      NotificationItem(
-        id: 'morning',
-        titleKey: 'morningTitle',
-        bodyKey: _getMorningMessageKey(),
-        time: DateTime(now.year, now.month, now.day, 9, 0),
-        type: NotificationType.morning,
-        isScheduled: now.hour < 9,
-      ),
-    );
-
-    // Öğle bildirimi (13:00)
-    notifications.add(
-      NotificationItem(
-        id: 'afternoon',
-        titleKey: 'afternoonTitle',
-        bodyKey: _getAfternoonMessageKey(),
-        time: DateTime(now.year, now.month, now.day, 13, 0),
-        type: NotificationType.afternoon,
-        isScheduled: now.hour < 13,
-      ),
-    );
-
-    // Akşam bildirimi (20:00)
-    notifications.add(
-      NotificationItem(
-        id: 'evening',
-        titleKey: 'eveningTitle',
-        bodyKey: _getEveningMessageKey(rate, completed, total),
-        bodyArgs: {
-          'rate': rate.toString(),
-          'completed': completed.toString(),
-          'total': total.toString(),
-        },
-        time: DateTime(now.year, now.month, now.day, 20, 0),
-        type: NotificationType.evening,
-        isScheduled: now.hour < 20,
-      ),
-    );
-
-    if (mounted) {
-      setState(() {
-        _notifications = notifications;
-        _isLoading = false;
-      });
-    }
-  }
-
-  String _getMorningMessageKey() {
-    final messages = ['morningMsg1', 'morningMsg2', 'morningMsg3'];
-    return messages[DateTime.now().day % messages.length];
-  }
-
-  String _getAfternoonMessageKey() {
-    final messages = ['afternoonMsg1', 'afternoonMsg2', 'afternoonMsg3'];
-    return messages[DateTime.now().day % messages.length];
-  }
-
-  String _getEveningMessageKey(int rate, int completed, int total) {
-    if (total == 0) {
-      return 'eveningMsgNoTasks';
-    }
-
-    if (rate == 100) {
-      return 'eveningMsgPerfect';
-    } else if (rate >= 75) {
-      return 'eveningMsgGreat';
-    } else if (rate >= 50) {
-      return 'eveningMsgGood';
-    } else {
-      return 'eveningMsgStart';
-    }
-  }
-
-  Future<void> _sendNotificationNow(NotificationItem item) async {
-    // Telefona bildirim gönder
-    switch (item.type) {
-      case NotificationType.morning:
-        await NotifyService.testMorningNotification();
-        break;
-      case NotificationType.afternoon:
-        await NotifyService.testAfternoonNotification();
-        break;
-      case NotificationType.evening:
-        await NotifyService.testEveningNotification();
-        break;
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('notificationSent'.tr()),
-          backgroundColor: const Color(0xFF06A77D),
-        ),
-      );
-    }
+    // Sayfa açıldığında bugün gönderilmiş olması gereken bildirimleri senkronize et
+    NotifyService.syncTodayNotificationsToHistory();
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F3460),
@@ -172,79 +46,184 @@ class _NotificationsPageState extends State<NotificationsPage> {
             colors: [Color(0xFF0F3460), Color(0xFF16213E)],
           ),
         ),
-        child:
-            _isLoading
-                ? const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF00B4D8)),
-                )
-                : ListView(
-                  padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Bildirim zamanları bilgisi
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                child: Row(
                   children: [
-                    // Bildirim zamanları bilgisi
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
+                    const Icon(Icons.schedule, color: Color(0xFF00B4D8)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'notificationsInfo'.tr(),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.schedule, color: Color(0xFF00B4D8)),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'notificationsInfo'.tr(),
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Bildirim listesi
-                    ..._notifications.map(
-                      (item) => _buildNotificationCard(item),
                     ),
                   ],
                 ),
+              ),
+            ),
+
+            // Bildirim Geçmişi Başlığı
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const Icon(Icons.history, color: Color(0xFF00B4D8), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'notificationHistoryTitle'.tr(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Bildirim Geçmişi Listesi
+            Expanded(
+              child:
+                  user == null
+                      ? _buildEmptyState()
+                      : StreamBuilder<QuerySnapshot>(
+                        stream:
+                            FirebaseFirestore.instance
+                                .collection('notification_history')
+                                .where('userId', isEqualTo: user.uid)
+                                .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF00B4D8),
+                              ),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            debugPrint(
+                              'Notification history error: ${snapshot.error}',
+                            );
+                            return _buildEmptyState();
+                          }
+
+                          var docs = snapshot.data?.docs ?? [];
+
+                          if (docs.isEmpty) {
+                            return _buildEmptyState();
+                          }
+
+                          // Client-side sıralama (yeniden eskiye)
+                          docs = List.from(docs);
+                          docs.sort((a, b) {
+                            final aTime =
+                                (a.data() as Map<String, dynamic>)['sentAt']
+                                    as Timestamp?;
+                            final bTime =
+                                (b.data() as Map<String, dynamic>)['sentAt']
+                                    as Timestamp?;
+                            if (aTime == null && bTime == null) return 0;
+                            if (aTime == null) return 1;
+                            if (bTime == null) return -1;
+                            return bTime.compareTo(aTime);
+                          });
+
+                          // Son 50 bildirim
+                          if (docs.length > 50) {
+                            docs = docs.sublist(0, 50);
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: docs.length,
+                            itemBuilder: (context, index) {
+                              final data =
+                                  docs[index].data() as Map<String, dynamic>;
+                              return _buildNotificationHistoryCard(data);
+                            },
+                          );
+                        },
+                      ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildNotificationCard(NotificationItem item) {
-    final now = DateTime.now();
-    final isPast = now.hour >= item.time.hour;
-    final statusText =
-        isPast
-            ? 'notificationSentStatus'.tr()
-            : 'notificationScheduledStatus'.tr();
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.notifications_off_outlined,
+            size: 64,
+            color: Colors.white.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'notificationHistoryEmpty'.tr(),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationHistoryCard(Map<String, dynamic> data) {
+    final title = data['title'] as String? ?? '';
+    final body = data['body'] as String? ?? '';
+    final type = data['type'] as String? ?? 'morning';
+    final sentAt = data['sentAt'] as Timestamp?;
 
     Color accentColor;
-    switch (item.type) {
-      case NotificationType.morning:
+    IconData icon;
+    switch (type) {
+      case 'morning':
         accentColor = const Color(0xFFFFB347);
+        icon = Icons.wb_sunny;
         break;
-      case NotificationType.afternoon:
+      case 'afternoon':
         accentColor = const Color(0xFFE94560);
+        icon = Icons.wb_twilight;
         break;
-      case NotificationType.evening:
+      case 'evening':
         accentColor = const Color(0xFF00B4D8);
+        icon = Icons.nightlight_round;
         break;
+      default:
+        accentColor = const Color(0xFF06A77D);
+        icon = Icons.notifications;
     }
 
-    // Body text with args if available
-    String bodyText;
-    if (item.bodyArgs != null) {
-      bodyText = item.bodyKey.tr(namedArgs: item.bodyArgs!);
-    } else {
-      bodyText = item.bodyKey.tr();
+    String formattedDate = '';
+    if (sentAt != null) {
+      final date = sentAt.toDate();
+      formattedDate =
+          '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     }
 
     return Container(
@@ -261,139 +240,65 @@ class _NotificationsPageState extends State<NotificationsPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accentColor.withValues(alpha: 0.3)),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _sendNotificationNow(item),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: accentColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${item.time.hour.toString().padLeft(2, '0')}:${item.time.minute.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          color: accentColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            isPast
-                                ? const Color(0xFF06A77D).withValues(alpha: 0.2)
-                                : Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isPast ? Icons.check_circle : Icons.schedule,
-                            size: 14,
-                            color:
-                                isPast
-                                    ? const Color(0xFF06A77D)
-                                    : Colors.white.withValues(alpha: 0.6),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            statusText,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color:
-                                  isPast
-                                      ? const Color(0xFF06A77D)
-                                      : Colors.white.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  item.titleKey.tr(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  child: Icon(icon, color: accentColor, size: 20),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  bodyText,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 14,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.touch_app,
-                      size: 14,
-                      color: Colors.white.withValues(alpha: 0.4),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'notificationTapToSend'.tr(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.4),
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 10),
+            Text(
+              body,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 13,
+              ),
+            ),
+            if (formattedDate.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.access_time,
+                    size: 14,
+                    color: Colors.white.withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    formattedDate,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
-}
-
-enum NotificationType { morning, afternoon, evening }
-
-class NotificationItem {
-  final String id;
-  final String titleKey;
-  final String bodyKey;
-  final Map<String, String>? bodyArgs;
-  final DateTime time;
-  final NotificationType type;
-  final bool isScheduled;
-
-  NotificationItem({
-    required this.id,
-    required this.titleKey,
-    required this.bodyKey,
-    this.bodyArgs,
-    required this.time,
-    required this.type,
-    required this.isScheduled,
-  });
 }

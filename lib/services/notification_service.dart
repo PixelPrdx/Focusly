@@ -296,63 +296,126 @@ class NotifyService {
     await scheduleDailyMotivations();
   }
 
-  // ============ TEST METODLARI ============
+  // Bugün gönderilmiş olması gereken bildirimleri geçmişe kaydet
+  static Future<void> syncTodayNotificationsToHistory() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-  /// Sabah bildirimini hemen test et
-  static Future<void> testMorningNotification() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lang = prefs.getString('language_code') ?? 'en';
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
 
-    const android = AndroidNotificationDetails(
-      'motivation_test',
-      'Test Bildirimleri',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    const ios = DarwinNotificationDetails();
+      final prefs = await SharedPreferences.getInstance();
+      final lang = prefs.getString('language_code') ?? 'en';
 
-    await _plugin.show(
-      300,
-      lang == 'tr' ? '🌅 Günaydın! (TEST)' : '🌅 Good Morning! (TEST)',
-      _getRandomMotivation(lang, 'morning'),
-      const NotificationDetails(android: android, iOS: ios),
-    );
+      // Bugün hangi bildirimlerin gönderilmiş olması gerekiyor?
+      final notifications = <Map<String, dynamic>>[];
+
+      // 09:00 - Sabah bildirimi
+      if (now.hour >= 9) {
+        notifications.add({
+          'type': 'morning',
+          'hour': 9,
+          'title': lang == 'tr' ? 'Günaydın! 🌅' : 'Good Morning! 🌅',
+          'body': _getRandomMotivation(lang, 'morning'),
+        });
+      }
+
+      // 13:00 - Öğle bildirimi
+      if (now.hour >= 13) {
+        notifications.add({
+          'type': 'afternoon',
+          'hour': 13,
+          'title':
+              lang == 'tr' ? 'Öğle Motivasyonu 🔥' : 'Afternoon Motivation 🔥',
+          'body': _getRandomMotivation(lang, 'afternoon'),
+        });
+      }
+
+      // 20:00 - Akşam bildirimi
+      if (now.hour >= 20) {
+        notifications.add({
+          'type': 'evening',
+          'hour': 20,
+          'title': lang == 'tr' ? 'Günün Özeti 📊' : 'Daily Summary 📊',
+          'body':
+              lang == 'tr'
+                  ? 'Bugünkü performansını görmek için uygulamayı aç!'
+                  : 'Open the app to see your today\'s performance!',
+        });
+      }
+
+      if (notifications.isEmpty) return;
+
+      // Bu bildirimlerin bugün için kaydedilip kaydedilmediğini kontrol et
+      for (final notif in notifications) {
+        final sentAt = DateTime(
+          today.year,
+          today.month,
+          today.day,
+          notif['hour'] as int,
+          0,
+        );
+
+        // Bu bildirimin bugün bu saatte kaydedilip kaydedilmediğini kontrol et
+        final existing =
+            await FirebaseFirestore.instance
+                .collection('notification_history')
+                .where('userId', isEqualTo: user.uid)
+                .where('type', isEqualTo: notif['type'])
+                .get();
+
+        // Bugün için bu tipte bildirim var mı kontrol et
+        bool alreadyExists = false;
+        for (final doc in existing.docs) {
+          final docSentAt = doc['sentAt'] as Timestamp?;
+          if (docSentAt != null) {
+            final docDate = docSentAt.toDate();
+            if (docDate.year == today.year &&
+                docDate.month == today.month &&
+                docDate.day == today.day) {
+              alreadyExists = true;
+              break;
+            }
+          }
+        }
+
+        if (!alreadyExists) {
+          await FirebaseFirestore.instance
+              .collection('notification_history')
+              .add({
+                'userId': user.uid,
+                'title': notif['title'],
+                'body': notif['body'],
+                'type': notif['type'],
+                'sentAt': Timestamp.fromDate(sentAt),
+              });
+        }
+      }
+    } catch (e) {
+      debugPrint('Bildirim senkronizasyon hatası: $e');
+    }
   }
 
-  /// Öğle bildirimini hemen test et
-  static Future<void> testAfternoonNotification() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lang = prefs.getString('language_code') ?? 'en';
+  // Bildirim geçmişine kaydet
+  static Future<void> saveNotificationToHistory({
+    required String title,
+    required String body,
+    required String type,
+  }) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-    const android = AndroidNotificationDetails(
-      'motivation_test',
-      'Test Bildirimleri',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    const ios = DarwinNotificationDetails();
-
-    await _plugin.show(
-      301,
-      lang == 'tr'
-          ? '🔥 Öğle Motivasyonu (TEST)'
-          : '🔥 Afternoon Motivation (TEST)',
-      _getRandomMotivation(lang, 'afternoon'),
-      const NotificationDetails(android: android, iOS: ios),
-    );
-  }
-
-  /// Akşam/görev bildirimini hemen test et
-  static Future<void> testEveningNotification() async {
-    await sendTaskCompletionNotification();
-  }
-
-  /// Tüm bildirimleri sırayla test et (3 saniye arayla)
-  static Future<void> testAllNotifications() async {
-    await testMorningNotification();
-    await Future.delayed(const Duration(seconds: 3));
-    await testAfternoonNotification();
-    await Future.delayed(const Duration(seconds: 3));
-    await testEveningNotification();
+      await FirebaseFirestore.instance.collection('notification_history').add({
+        'userId': user.uid,
+        'title': title,
+        'body': body,
+        'type': type,
+        'sentAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Bildirim geçmişi kayıt hatası: $e');
+    }
   }
 }

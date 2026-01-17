@@ -64,8 +64,9 @@ class _SignUpPageState extends State<SignUpPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('signupSuccess'.tr()),
+            content: Text('verificationEmailSent'.tr()),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
           ),
         );
         Navigator.of(
