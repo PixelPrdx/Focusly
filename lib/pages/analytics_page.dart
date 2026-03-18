@@ -61,7 +61,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       // Tarih filtreleme client-side
       final filteredPomodoros =
           pomodoroSnapshot.docs.where((doc) {
-            final completedAt = doc['completedAt'] as Timestamp?;
+            final data = doc.data();
+            final completedAt = data['completedAt'] as Timestamp?;
             if (completedAt == null) return false;
             final date = completedAt.toDate();
             return (date.isAfter(startDate) ||
@@ -79,9 +80,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       // Client-side filtreleme: tamamlanmış ve tarih kontrolü
       final filteredTasks =
           tasksSnapshot.docs.where((doc) {
-            final completed = doc['completed'] as bool? ?? false;
+            final data = doc.data();
+            final completed = data['completed'] as bool? ?? false;
             if (!completed) return false;
-            final completedAt = doc['completedAt'] as Timestamp?;
+            final completedAt = data['completedAt'] as Timestamp?;
             if (completedAt == null) return false;
             final date = completedAt.toDate();
             return (date.isAfter(startDate) ||

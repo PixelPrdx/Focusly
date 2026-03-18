@@ -55,22 +55,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _loadSessionDuration() {
-    final savedTime = _prefs.getInt('session_duration_today') ?? 0;
-    final lastDate = _prefs.getString('last_session_date') ?? '';
+    final savedTime = _prefs.getInt('session_duration_today_$userId') ?? 0;
+    final lastDate = _prefs.getString('last_session_date_$userId') ?? '';
     final today = DateTime.now().toString().split(' ')[0];
 
     if (lastDate != today) {
       // Yeni gün başladı, sürü sıfırla
-      _prefs.setInt('session_duration_today', 0);
+      _prefs.setInt('session_duration_today_$userId', 0);
       setState(() => _sessionDuration = 0);
-      _prefs.setString('last_session_date', today);
+      _prefs.setString('last_session_date_$userId', today);
     } else {
       setState(() => _sessionDuration = savedTime);
     }
   }
 
   void _loadStreakDays() async {
-    final lastAccessDate = _prefs.getString('last_access_date') ?? '';
+    final lastAccessDate = _prefs.getString('last_access_date_$userId') ?? '';
     final today = DateTime.now().toString().split(' ')[0];
     final yesterday =
         DateTime.now()
@@ -78,7 +78,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             .toString()
             .split(' ')[0];
 
-    int streak = _prefs.getInt('streak_days') ?? 0;
+    int streak = _prefs.getInt('streak_days_$userId') ?? 0;
 
     if (lastAccessDate.isEmpty) {
       // İlk gün
@@ -91,8 +91,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       streak = 1;
     }
 
-    await _prefs.setInt('streak_days', streak);
-    await _prefs.setString('last_access_date', today);
+    await _prefs.setInt('streak_days_$userId', streak);
+    await _prefs.setString('last_access_date_$userId', today);
     setState(() => _streakDays = streak);
   }
 
@@ -162,7 +162,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // Her dakika kaydet
       if (_sessionDuration % 60 == 0) {
-        await _prefs.setInt('session_duration_today', _sessionDuration);
+        await _prefs.setInt('session_duration_today_$userId', _sessionDuration);
       }
     });
   }
@@ -509,15 +509,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'homeGreeting'.tr(),
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'homeGreeting'.tr(),
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 4),
                                 Text(

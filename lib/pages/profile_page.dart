@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -12,11 +15,14 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final AuthService _authService = AuthService();
+  final ImagePicker _imagePicker = ImagePicker();
   late String _userId;
   bool _isEditing = false;
   late TextEditingController _fullNameController;
   late TextEditingController _emailController;
   bool _isSaving = false;
+  bool _isDeleting = false;
+  File? _selectedImage;
 
   @override
   void initState() {
@@ -92,6 +98,32 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null && mounted) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${'error'.tr()}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,69 +156,84 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 32),
 
                 // Profile Avatar with gradient ring
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Gradient ring
-                    Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            const Color(0xFF00B4D8),
-                            const Color(0xFF00B4D8).withValues(alpha: 0.5),
+                GestureDetector(
+                  onTap: _isEditing ? _pickImage : null,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Gradient ring
+                      Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(0xFF00B4D8),
+                              const Color(0xFF00B4D8).withValues(alpha: 0.5),
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFF00B4D8,
+                              ).withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
                           ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF00B4D8).withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                          ),
-                        ],
                       ),
-                    ),
-                    // Inner circle with icon
-                    Container(
-                      width: 130,
-                      height: 130,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFF1A1A2E),
+                      // Inner circle with icon or selected image
+                      Container(
+                        width: 130,
+                        height: 130,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF1A1A2E),
+                          image:
+                              _selectedImage != null
+                                  ? DecorationImage(
+                                    image: FileImage(_selectedImage!),
+                                    fit: BoxFit.cover,
+                                  )
+                                  : null,
+                        ),
+                        child:
+                            _selectedImage == null
+                                ? const Icon(
+                                  Icons.person_rounded,
+                                  size: 70,
+                                  color: Colors.white,
+                                )
+                                : null,
                       ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        size: 70,
-                        color: Colors.white,
-                      ),
-                    ),
-                    // Edit badge
-                    if (_isEditing)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF00B4D8),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFF1A1A2E),
-                              width: 3,
+                      // Edit badge - camera icon when editing
+                      if (_isEditing)
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00B4D8),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF1A1A2E),
+                                width: 3,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 16,
+                              color: Colors.white,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.edit,
-                            size: 16,
-                            color: Colors.white,
-                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
 
@@ -322,7 +369,25 @@ class _ProfilePageState extends State<ProfilePage> {
                           onPressed:
                               _isSaving
                                   ? null
-                                  : () => setState(() => _isEditing = false),
+                                  : () async {
+                                        // Mevcut TextField değerlerini anında sıfırla ki titreme (glitch) olmasın
+                                        final userData =
+                                            await _authService.getUserData(
+                                              _userId,
+                                            );
+                                        if (mounted) {
+                                          setState(() {
+                                            _isEditing = false;
+                                            _selectedImage = null;
+                                            if (userData != null) {
+                                              _fullNameController.text =
+                                                  userData['fullName'] ?? '';
+                                              _emailController.text =
+                                                  userData['email'] ?? '';
+                                            }
+                                          });
+                                        }
+                                      },
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
@@ -419,12 +484,200 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 32),
+
+                // Delete Account Button
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: _isDeleting ? null : _showDeleteAccountDialog,
+                    icon:
+                        _isDeleting
+                            ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.red,
+                                ),
+                              ),
+                            )
+                            : const Icon(
+                              Icons.delete_forever_outlined,
+                              color: Colors.red,
+                            ),
+                    label: Text(
+                      _isDeleting ? 'deleting'.tr() : 'deleteAccount'.tr(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: Colors.red.withValues(alpha: 0.3),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Privacy Policy Button
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: _openPrivacyPolicy,
+                    icon: Icon(
+                      Icons.privacy_tip_outlined,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                    label: Text(
+                      'privacyPolicy'.tr(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A2E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.red,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'deleteAccount'.tr(),
+                  style: const TextStyle(color: Colors.white, fontSize: 18),
+                ),
+              ],
+            ),
+            content: Text(
+              'deleteAccountConfirm'.tr(),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 14,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(
+                  'cancel'.tr(),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'delete'.tr(),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _deleteAccount();
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    setState(() => _isDeleting = true);
+
+    try {
+      await _authService.deleteAccount();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('deleteAccountSuccess'.tr()),
+            backgroundColor: const Color(0xFF06A77D),
+          ),
+        );
+
+        // Navigate to login page and clear stack
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${'error'.tr()}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    // Privacy policy hosted on GitHub Pages
+    final locale = context.locale.languageCode;
+    final url =
+        locale == 'tr'
+            ? 'https://pixelprdx.github.io/focusly-privacy/privacy_policy_tr.html'
+            : 'https://pixelprdx.github.io/focusly-privacy/privacy_policy.html';
+
+    final uri = Uri.parse(url);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${'error'.tr()}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildInfoCard({

@@ -91,6 +91,24 @@ class AuthService {
     await _auth.signOut();
   }
 
+  // Hesabı tamamen sil (Firestore verisi + Firebase Auth)
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No user signed in');
+    }
+
+    try {
+      // Önce Firestore'dan kullanıcı verisini sil
+      await _firestore.collection('users').doc(user.uid).delete();
+
+      // Sonra Firebase Auth hesabını sil
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    }
+  }
+
   // Kullanıcı bilgilerini al
   Future<Map<String, dynamic>?> getUserData(String uid) async {
     try {

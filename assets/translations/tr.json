@@ -117,5 +117,12 @@
     "eveningMsgGreat": "🎯 Harika iş çıkardın! %{rate} tamamlandı!",
     "eveningMsgGood": "📈 İyi ilerliyorsun! %{rate} tamamlandı.",
     "eveningMsgStart": "💪 Her adım önemli! %{rate} tamamladın.",
-    "memberSince": "Üyelik Tarihi"
+    "memberSince": "Üyelik Tarihi",
+    "signupPasswordMismatch": "Şifreler eşleşmiyor",
+    "signupPasswordTooShort": "Şifre en az 6 karakter olmalıdır",
+    "deleteAccount": "Hesabımı Sil",
+    "deleteAccountConfirm": "Hesabınızı kalıcı olarak silmek istediğinize emin misiniz?",
+    "deleteAccountSuccess": "Hesabınız başarıyla silindi.",
+    "deleting": "Siliniyor...",
+    "privacyPolicy": "Gizlilik Politikası"
 }

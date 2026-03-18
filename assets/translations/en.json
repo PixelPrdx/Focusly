@@ -117,5 +117,12 @@
   "eveningMsgGreat": "🎯 Great job! {rate}% completed!",
   "eveningMsgGood": "📈 You're making progress! {rate}% completed.",
   "eveningMsgStart": "💪 Every step counts! {rate}% completed.",
-  "memberSince": "Member Since"
+  "memberSince": "Member Since",
+  "signupPasswordMismatch": "Passwords do not match",
+  "signupPasswordTooShort": "Password must be at least 6 characters",
+  "deleteAccount": "Delete Account",
+  "deleteAccountConfirm": "Are you sure you want to permanently delete your account?",
+  "deleteAccountSuccess": "Account deleted successfully.",
+  "deleting": "Deleting...",
+  "privacyPolicy": "Privacy Policy"
 }

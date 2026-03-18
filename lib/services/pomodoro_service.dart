@@ -139,25 +139,25 @@ class PomodoroService {
 
   Future<void> _playCompletionSound() async {
     try {
-      // Önce URL'den sesi çal (daha güvenilir)
-      await _audioPlayer.play(
-        UrlSource(
-          'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg',
+      // Configure audio context for iOS to play even in silent mode
+      final audioContext = AudioContext(
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: {
+            AVAudioSessionOptions.mixWithOthers,
+          },
         ),
+      );
+      await AudioPlayer.global.setAudioContext(audioContext);
+
+      // Sadece yerel dosyadan ses çal (iOS URL .ogg desteklemiyor, hata veriyor)
+      await _audioPlayer.play(
+        AssetSource('sounds/timer_complete.wav'),
         volume: 1.0,
       );
       debugPrint('Alarm sound played successfully');
     } catch (e) {
-      debugPrint('Error playing URL sound: $e');
-      // Fallback: Yerel dosyadan ses çal
-      try {
-        await _audioPlayer.play(
-          AssetSource('sounds/timer_complete.mp3'),
-          volume: 1.0,
-        );
-      } catch (e2) {
-        debugPrint('Local sound also failed: $e2');
-      }
+      debugPrint('Error playing sound: $e');
     }
   }
 

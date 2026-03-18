@@ -155,29 +155,27 @@ class _LoginPageState extends State<LoginPage> {
                   if (resetEmailController.text.trim().isEmpty) {
                     return;
                   }
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
                   try {
                     await _authService.sendPasswordResetEmail(
                       resetEmailController.text.trim(),
                     );
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('resetPasswordSent'.tr()),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
+                    navigator.pop();
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('resetPasswordSent'.tr()),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
                   } catch (e) {
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(e.toString()),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
+                    navigator.pop();
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString()),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
                   }
                 },
                 child: Text(

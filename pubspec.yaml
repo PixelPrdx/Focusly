@@ -27,6 +27,8 @@ dependencies:
   flutter_timezone: ^3.0.1
   easy_localization: ^3.0.7
   audioplayers: ^6.0.0
+  image_picker: ^1.2.1
+  url_launcher: ^6.2.4
 
 dev_dependencies:
   flutter_test:
@@ -38,6 +40,15 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/icons/app_icon.png"
+  adaptive_icon_background: "#6B46C1"
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
 
 # The following section is specific to Flutter packages.
 flutter:

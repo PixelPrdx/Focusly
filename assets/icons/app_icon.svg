@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6B46C1"/>
+      <stop offset="100%" style="stop-color:#4299E1"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="200" fill="url(#bgGradient)"/>
+  
+  <!-- Focus Target Circle - Outer -->
+  <circle cx="512" cy="512" r="280" fill="none" stroke="white" stroke-width="40" opacity="0.3"/>
+  
+  <!-- Focus Target Circle - Middle -->
+  <circle cx="512" cy="512" r="180" fill="none" stroke="white" stroke-width="35" opacity="0.6"/>
+  
+  <!-- Focus Target Circle - Inner -->
+  <circle cx="512" cy="512" r="80" fill="white" opacity="0.9"/>
+  
+  <!-- Checkmark -->
+  <path d="M420 520 L480 580 L600 440" 
+        fill="none" 
+        stroke="#6B46C1" 
+        stroke-width="50" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+</svg>

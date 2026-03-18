@@ -55,5 +55,10 @@
   "deleteConfirmation": "Are you sure you want to delete this task?",
   "cancel": "Cancel",
   "delete": "Delete",
-  "tapToOpen": "Tap to open"
+  "tapToOpen": "Tap to open",
+  "deleteAccount": "Delete Account",
+  "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.",
+  "deleteAccountSuccess": "Account deleted successfully",
+  "deleting": "Deleting...",
+  "privacyPolicy": "Privacy Policy"
 }

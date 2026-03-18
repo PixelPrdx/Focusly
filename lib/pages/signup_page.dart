@@ -40,12 +40,12 @@ class _SignUpPageState extends State<SignUpPage> {
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      setState(() => _errorMessage = 'Şifreler eşleşmiyor');
+      setState(() => _errorMessage = 'signupPasswordMismatch'.tr());
       return;
     }
 
     if (_passwordController.text.length < 6) {
-      setState(() => _errorMessage = 'Şifre en az 6 karakter olmalıdır');
+      setState(() => _errorMessage = 'signupPasswordTooShort'.tr());
       return;
     }
 

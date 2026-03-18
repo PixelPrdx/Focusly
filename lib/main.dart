@@ -42,6 +42,7 @@ void main() async {
       supportedLocales: const [Locale('en'), Locale('tr')],
       path: 'assets/translations',
       fallbackLocale: const Locale('en'),
+      startLocale: const Locale('en'), // Default to English on first launch
       child: const FocuslyApp(),
     ),
   );

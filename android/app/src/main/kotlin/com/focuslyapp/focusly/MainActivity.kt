@@ -1,4 +1,4 @@
-package com.example.focusly
+package com.focuslyapp.focusly
 
 import io.flutter.embedding.android.FlutterActivity
 
